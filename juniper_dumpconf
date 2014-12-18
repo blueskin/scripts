@@ -1,0 +1,48 @@
+#! /bin/bash
+
+while getopts "u:h:" opt
+do
+	case $opt in 
+		u)
+				user="$OPTARG" ;;
+		h)
+				host="$OPTARG" ;;
+		?)
+				echo "-h host [ -u username ]"
+				echo "assumes -u is equal to current user if not supplied"
+				exit 2 ;;
+	esac
+done
+
+if [ -z $user ]
+then
+user=`whoami`
+fi
+if [ -z $host ]
+then
+	echo "We need a hostname here."
+	echo "-u user -h host"
+	exit 2
+fi
+
+temp=`mktemp`
+
+/usr/bin/expect > $temp << EOF
+
+set timeout 10
+
+spawn -noecho ssh $user@$host
+expect ">"
+
+send "show configuration |no-more | display set\r"
+expect "show configuration |no-more | display set\r"
+
+send "exit\r"
+
+EOF
+
+#remove the last line
+sed -i '$d' $temp
+#display file, removing the command to show config
+grep -v 'show configuration |no-more | display set' $temp
+rm $temp
